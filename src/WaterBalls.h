@@ -37,6 +37,7 @@ void setup_ticker_timers();
 
 void start_ith_ticker_timer(uint8_t channel_no);
 void stop_ith_ticker_timer(uint8_t channel_no);
+void update_time_of_all_tickers(uint32_t time_interval_ticker);
 void check_ith_channel_distace_and_take_action(uint8_t channel_no);
 void check_all_channels_distace_and_take_action();
 void read_ith_sensor_distance(uint8_t sensor_no);

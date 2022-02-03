@@ -23,6 +23,7 @@ const uint8_t trigPins[] = {0, 4, 6, 8};
 const uint8_t output_channels[] = {10, 11, 12, 13};
 
 #endif
+// 
 
 #define analog_read_pot_pin A1
 #define analog_read_pot_LED_pin 3

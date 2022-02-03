@@ -27,7 +27,10 @@ void myIRS1()
 
 void myIRS1_method()
 {
+#ifdef DEBUG_CODE
   Serial.println(F("==myIRS1_method called=="));
+#endif
+
   // To read analog values from pot , and store them in memory
   read_analog_value_from_sensor();
   write_analog_store_value_to_EEPROM();
@@ -62,8 +65,10 @@ void setupISR1()
 
   attachInterrupt(digitalPinToInterrupt(builtInButton), myIRS1, RISING);
 
+#ifdef DEBUG_CODE
   Serial.print("setupISR1 at pin  = ");
   Serial.println(builtInButton);
+#endif
 }
 
 unsigned long cool_off_duration_millis[nos_channel];
@@ -125,30 +130,39 @@ void read_analog_value_from_EEPROM()
   {
     analog_sensor_read_value = analog_sensor_read_value + EEPROM.read(start_index + i);
 
+#ifdef DEBUG_CODE
     Serial.print(start_index + i);
     Serial.print("\t");
     Serial.print(analog_sensor_read_value);
     Serial.println();
+#endif
   }
 
   water_falling_time_ms = map(analog_sensor_read_value, 0, 1023, 2000, 8000);
+  update_time_of_all_tickers(water_falling_time_ms);
   analogWrite(analog_read_pot_LED_pin, analog_sensor_read_value / 4);
 
+#ifdef DEBUG_CODE
   Serial.print("EEPROM analog_sensor_read_value = ");
   Serial.println(analog_sensor_read_value);
+#endif
 }
 
 void setup_ultrasonic_sensors()
 {
+#ifdef DEBUG_CODE
   Serial.println("Setup Ultrasonic Sensor HC-SR04 Test");
+#endif
   for (uint8_t i = 0; i < nos_channel; i++)
   {
+#ifdef DEBUG_CODE
     Serial.print("setup_ultrasonic_sensor= ");
     Serial.print(i);
     Serial.print(" \t");
     Serial.print(trigPins[i]);
     Serial.print(" \t");
     Serial.println(echoPins[i]);
+#endif
 
     pinMode(trigPins[i], OUTPUT); // Sets the trigPin as an OUTPUT
     pinMode(echoPins[i], INPUT);  // Sets the echoPin as an INPUT
@@ -157,11 +171,17 @@ void setup_ultrasonic_sensors()
 
 void setup_output_channels()
 {
+#ifdef DEBUG_CODE
   Serial.println("setup_output_channels");
+#endif
+
   for (uint8_t i = 0; i < nos_channel; i++)
   {
+#ifdef DEBUG_CODE
     Serial.print("setup_output_channels= ");
     Serial.println(i);
+#endif
+
     pinMode(output_channels[i], OUTPUT); // Sets the trigPin as an OUTPUT
 
     digitalWrite(output_channels[i], false);
@@ -171,12 +191,16 @@ void setup_output_channels()
 
 void setup_push_buttons()
 {
+#ifdef DEBUG_CODE
   Serial.println("setup_push_buttons");
+#endif
 }
 
 void setup_analog_read()
 {
+#ifdef DEBUG_CODE
   Serial.println("setup_analog_read");
+#endif
 }
 
 void read_analog_value_from_sensor()
@@ -192,11 +216,13 @@ void read_analog_value_from_sensor()
   analog_sensor_read_value = (sum_analog_values) / analog_reading_nos_to_avg;
 
   water_falling_time_ms = map(analog_sensor_read_value, 0, 1023, 2000, 8000);
-
+  update_time_of_all_tickers(water_falling_time_ms);
   analogWrite(analog_read_pot_LED_pin, analog_sensor_read_value / 4);
 
+#ifdef DEBUG_CODE
   Serial.print("AVG 10 read_analog_value_from_sensor = ");
   Serial.println(analog_sensor_read_value);
+#endif
 }
 
 // void read_analog_store_value_from_EEPROM(){}
@@ -245,9 +271,11 @@ void setup_ticker_timers()
 
 void setup()
 {
+#ifdef DEBUG_CODE
   Serial.begin(serial_baud_rate);                   // // Serial Communication is starting with 9600 of baudrate speed
   Serial.println("Ultrasonic Sensor HC-SR04 Test"); // print some text in Serial Monitor
   Serial.println("with Arduino UNO R3");
+#endif
 
   // setup_lcd_diaplay(); // FUTURE req;
   setup_ticker_timers();
@@ -261,29 +289,37 @@ void setup()
 
   setupISR1();
 
+#ifdef DEBUG_CODE
   Serial.println("\n \n SETUP COMPLETED! \n \n");
+#endif
 }
 
 void toggle_ith_output_channel(uint8_t channel_no)
 {
+#ifdef DEBUG_CODE
   Serial.print("toggle_ith_output_channel = ");
   Serial.println(channel_no);
+#endif
 
   output_channel_state[channel_no] = !(output_channel_state[channel_no]);
   digitalWrite(output_channels[channel_no], output_channel_state[channel_no]);
 
+#ifdef DEBUG_CODE
   Serial.print("output_channel_state[channel_no] = ");
   Serial.println(output_channel_state[channel_no]);
   Serial.println("");
+#endif
 }
 
 void start_ith_ticker_timer(uint8_t channel_no)
 {
+#ifdef DEBUG_CODE
   Serial.print("start_ith_ticker_timer i = ");
   Serial.println(channel_no);
 
   Serial.print("water_falling_time_ms i = ");
   Serial.println(water_falling_time_ms);
+#endif
 
   switch (channel_no)
   {
@@ -307,9 +343,11 @@ void start_ith_ticker_timer(uint8_t channel_no)
 
 void stop_ith_ticker_timer(uint8_t channel_no)
 {
+#ifdef DEBUG_CODE
 
   Serial.print("stop_ith_ticker_timer i = ");
   Serial.println(channel_no);
+#endif
 
   unsigned long current_millis = millis();
 
@@ -337,6 +375,15 @@ void stop_ith_ticker_timer(uint8_t channel_no)
   }
 }
 
+void update_time_of_all_tickers(uint32_t time_interval_ticker)
+{
+
+  tickerObject_output_0.interval(time_interval_ticker);
+  tickerObject_output_1.interval(time_interval_ticker);
+  tickerObject_output_2.interval(time_interval_ticker);
+  tickerObject_output_3.interval(time_interval_ticker);
+}
+
 void check_ith_channel_distace_and_take_action(uint8_t channel_no)
 {
   // check distance and then switch on relay for given millisecons then turn off relay
@@ -355,9 +402,11 @@ void check_ith_channel_distace_and_take_action(uint8_t channel_no)
         toggle_ith_output_channel(channel_no);
         start_ith_ticker_timer(channel_no);
 
+#ifdef DEBUG_CODE
         Serial.print("Distance: ");
         Serial.print(distances[channel_no]);
         Serial.println(" cm");
+#endif
       }
 #ifdef DEBUG_CODE
       else
@@ -410,8 +459,11 @@ void check_ith_channel_distace_and_take_action(uint8_t channel_no)
 
     if (output_channel_state[channel_no] == true)
     {
+#ifdef DEBUG_CODE
       Serial.print("haath given paani bharne ke duration se pehele hata lia ,  hand_put_state[channel_no] = ");
       Serial.println(channel_no);
+#endif
+
       toggle_ith_output_channel(channel_no);
       stop_ith_ticker_timer(channel_no);
     }
@@ -430,14 +482,17 @@ void check_all_channels_distace_and_take_action()
 
 void read_ith_sensor_distance(uint8_t sensor_no)
 {
-  // Serial.print(trigPins[sensor_no]);
-  // Serial.print(" ");
-  // Serial.print(echoPins[sensor_no]);
-  // Serial.print(" ");
-  // Serial.print(durations[sensor_no]);
-  // Serial.print(" ");
-  // Serial.print(distances[sensor_no]);
-  // Serial.println(" ");
+#ifdef DEBUG_CODE
+// Serial.print(trigPins[sensor_no]);
+// Serial.print(" ");
+// Serial.print(echoPins[sensor_no]);
+// Serial.print(" ");
+// Serial.print(durations[sensor_no]);
+// Serial.print(" ");
+// Serial.print(distances[sensor_no]);
+// Serial.println(" ");
+#endif
+
   // Clears the trigPin condition
   digitalWrite(trigPins[sensor_no], LOW);
   delayMicroseconds(US_start_delay_ms);
@@ -449,10 +504,13 @@ void read_ith_sensor_distance(uint8_t sensor_no)
   durations[sensor_no] = pulseIn(echoPins[sensor_no], HIGH);
   // Calculating the distance
   distances[sensor_no] = (durations[sensor_no] * US_sound_speed) / 2.0; // Speed of sound wave divided by 2 (go and back)
-  // Displays the distance on the Serial Monitor
-  // Serial.print("Distance: ");
-  // Serial.print(distances[sensor_no]);
-  // Serial.println(" cm");
+                                                                        // Displays the distance on the Serial Monitor
+
+#ifdef DEBUG_CODE
+// Serial.print("Distance: ");
+// Serial.print(distances[sensor_no]);
+// Serial.println(" cm");
+#endif
 }
 
 void read_all_sensor_data()
