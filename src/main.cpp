@@ -3,11 +3,7 @@
 #include <EEPROM.h>
 #include "WaterBalls.h"
 
-// #define echoPin 2 // attach pin D2 Arduino to pin Echo of HC-SR04
-// #define trigPin 3 // attach pin D3 Arduino to pin Trig of HC-SR04
-
 uint32_t water_falling_time_ms = 5000; // in ms;
-
 uint16_t analog_sensor_read_value = 0;
 
 // <Interrupts>
@@ -184,8 +180,8 @@ void setup_output_channels()
 
     pinMode(output_channels[i], OUTPUT); // Sets the trigPin as an OUTPUT
 
-    digitalWrite(output_channels[i], false);
-    output_channel_state[i] = false;
+    digitalWrite(output_channels[i], initial_state_of_output_channels); // iverted logic of relay module
+    output_channel_state[i] = initial_state_of_output_channels;
   }
 }
 
@@ -294,6 +290,120 @@ void setup()
 #endif
 }
 
+// AYUSH START
+void on_off_set_ith_output_channel(uint8_t channel_no, bool channel_state)
+{
+#ifdef DEBUG_CODE
+  Serial.print("on_off_set_ith_output_channel = ");
+  Serial.print(channel_no);
+  Serial.println(channel_state ? " > ON " : " > OFF");
+#endif
+
+  output_channel_state[channel_no] = channel_state;
+  digitalWrite(output_channels[channel_no], output_channel_state[channel_no]);
+
+  // #ifdef DEBUG_CODE
+  //   Serial.print("output_channel_state[channel_no] = ");
+  //   Serial.print(output_channel_state[channel_no]);
+  //   Serial.println(channel_state ? " > ON " : " > OFF");
+  // #endif
+}
+
+void on_off_check_ith_channel_distace_and_take_action(uint8_t channel_no)
+{
+  // check distance and then switch on relay for given millisecons then turn off relay
+  if (distances[channel_no] <= activation_min_dist && distances[channel_no] > activation_safe_zone_dist)
+  {
+    if (output_channel_state[channel_no] == water_false)
+    {
+      unsigned long currentMillis = millis();
+      // if (((currentMillis  - (cool_off_duration_millis[channel_no] + dealy_in_action_ms + water_falling_time_ms) >= cool_off_duration_ms)) && (hand_put_state[channel_no] == false))
+      if (((currentMillis - (cool_off_duration_millis[channel_no]) >= cool_off_duration_ms)) && (hand_put_state[channel_no] == false))
+      {
+        hand_put_state[channel_no] = true;
+        // cool_off_duration_millis[channel_no] = currentMillis;
+
+        delay(dealy_in_action_ms);
+        on_off_set_ith_output_channel(channel_no, water_true);
+        // toggle_ith_output_channel(channel_no);
+        start_ith_ticker_timer(channel_no);
+
+#ifdef DEBUG_CODE
+        Serial.print("Distance: ");
+        Serial.print(distances[channel_no]);
+        Serial.println(" cm");
+#endif
+      }
+#ifdef DEBUG_CODE
+      else
+      {
+        if ((currentMillis - (cool_off_duration_millis[channel_no]) < cool_off_duration_ms))
+        {
+          if (millis() - previousMillis_cool_off_print > previousMillis_cool_off_print_interval)
+          {
+            previousMillis_cool_off_print = millis();
+            Serial.print("wait for cool off ");
+            // Serial.print(cool_off_duration_ms - (millis() - (cool_off_duration_millis[channel_no] + dealy_in_action_ms + water_falling_time_ms)));
+            Serial.print(cool_off_duration_ms - (millis() - (cool_off_duration_millis[channel_no])));
+            Serial.println(" ms");
+          }
+        }
+        else
+        {
+          if (millis() - previousMillis_cool_off_print > 600)
+          {
+            previousMillis_cool_off_print = millis();
+            Serial.print(" Cool off ho gaya hai , BC haath hata ab! \t");
+            Serial.print("hand_put_state[channel_no] = ");
+            Serial.println(hand_put_state[channel_no]);
+          }
+        }
+      }
+#endif
+    }
+    // else
+    // {
+    //   if ((distances[channel_no] >= default_safe_zone_dist))
+    //   {
+    //     Serial.print("haath given paani bharne ke duration se pehele hata lia ,  hand_put_state[channel_no] = ");
+    //     Serial.println(channel_no);
+    //     toggle_ith_output_channel(channel_no);
+    //     stop_ith_ticker_timer(channel_no);
+    //     hand_put_state[channel_no] = false; // not required , can be tested and later deleted.
+    //   }
+    // }
+  }
+
+  // If  hand was removed before the actual times up.
+  else if ((distances[channel_no] >= default_safe_zone_dist) && (distances[channel_no] < default_min_dist) && (output_channel_state[channel_no] == water_true))
+  {
+    Serial.print("Part 1 > haath given paani bharne ke duration se pehele hata lia ,  hand_put_state[channel_no] = ");
+    Serial.println(channel_no);
+    on_off_set_ith_output_channel(channel_no, water_false);
+    stop_ith_ticker_timer(channel_no);
+  }
+
+  if (hand_put_state[channel_no] && (distances[channel_no] >= default_safe_zone_dist))
+  {
+    hand_put_state[channel_no] = false;
+
+    if (output_channel_state[channel_no] == !(initial_state_of_output_channels))
+    {
+#ifdef DEBUG_CODE
+      Serial.print("Part 2 > haath given paani bharne ke duration se pehele hata lia ,  hand_put_state[channel_no] = ");
+      Serial.println(channel_no);
+#endif
+      on_off_set_ith_output_channel(channel_no, water_false);
+      // toggle_ith_output_channel(channel_no);
+      stop_ith_ticker_timer(channel_no);
+    }
+
+    // hand_put_state[channel_no] = false; // not required , can be tested and later deleted.
+  }
+}
+
+// AYUSH END
+
 void toggle_ith_output_channel(uint8_t channel_no)
 {
 #ifdef DEBUG_CODE
@@ -305,9 +415,9 @@ void toggle_ith_output_channel(uint8_t channel_no)
   digitalWrite(output_channels[channel_no], output_channel_state[channel_no]);
 
 #ifdef DEBUG_CODE
-  Serial.print("output_channel_state[channel_no] = ");
-  Serial.println(output_channel_state[channel_no]);
-  Serial.println("");
+  Serial.print("on_off_set_ith_output_channel = ");
+  Serial.print(channel_no);
+  Serial.println(output_channel_state[channel_no] ? " > ON " : " > OFF");
 #endif
 }
 
@@ -389,7 +499,7 @@ void check_ith_channel_distace_and_take_action(uint8_t channel_no)
   // check distance and then switch on relay for given millisecons then turn off relay
   if (distances[channel_no] <= activation_min_dist && distances[channel_no] > activation_safe_zone_dist)
   {
-    if (output_channel_state[channel_no] == false)
+    if (output_channel_state[channel_no] == initial_state_of_output_channels)
     {
       unsigned long currentMillis = millis();
       // if (((currentMillis  - (cool_off_duration_millis[channel_no] + dealy_in_action_ms + water_falling_time_ms) >= cool_off_duration_ms)) && (hand_put_state[channel_no] == false))
@@ -447,8 +557,12 @@ void check_ith_channel_distace_and_take_action(uint8_t channel_no)
     //   }
     // }
   }
-  else if ((distances[channel_no] >= default_safe_zone_dist) && (distances[channel_no] < default_min_dist) && (output_channel_state[channel_no] == true))
+
+  // If  hand was removed before the actual times up.
+  else if ((distances[channel_no] >= default_safe_zone_dist) && (distances[channel_no] < default_min_dist) && (output_channel_state[channel_no] == !(initial_state_of_output_channels)))
   {
+    Serial.print("Part 1 > haath given paani bharne ke duration se pehele hata lia ,  hand_put_state[channel_no] = ");
+    Serial.println(channel_no);
     toggle_ith_output_channel(channel_no);
     stop_ith_ticker_timer(channel_no);
   }
@@ -457,10 +571,10 @@ void check_ith_channel_distace_and_take_action(uint8_t channel_no)
   {
     hand_put_state[channel_no] = false;
 
-    if (output_channel_state[channel_no] == true)
+    if (output_channel_state[channel_no] == !(initial_state_of_output_channels))
     {
 #ifdef DEBUG_CODE
-      Serial.print("haath given paani bharne ke duration se pehele hata lia ,  hand_put_state[channel_no] = ");
+      Serial.print("Part 2 > haath given paani bharne ke duration se pehele hata lia ,  hand_put_state[channel_no] = ");
       Serial.println(channel_no);
 #endif
 
@@ -476,7 +590,8 @@ void check_all_channels_distace_and_take_action()
 {
   for (uint8_t i = 0; i < nos_channel; i++)
   {
-    check_ith_channel_distace_and_take_action(i);
+    // check_ith_channel_distace_and_take_action(i);
+    on_off_check_ith_channel_distace_and_take_action(i);
   }
 }
 
